@@ -20,31 +20,33 @@ Where *Agentic Design Patterns* taught how to **write** agents, this book is abo
 
 Each chapter folder holds the chapter's Atlas project. Extended examples that go beyond the printed text live in each chapter's `online/` subfolder.
 
+Every chapter has its own **README** (linked below) with a TL;DR, the key concepts mapped to the code, a file guide, a hands-on checklist of what to do, run commands, and production notes. You can use them to learn the concepts without the book.
+
 | Folder | Chapter |
 |---|---|
-| `ch01_react_from_scratch/` | Anatomy of an Agent — the minimal ReAct loop |
-| `ch02_prompt_architecture/` | Prompt Architecture for Agents |
-| `ch03_tools_and_skills/` | Tools, Skills, and Structured Outputs |
-| `ch04_handoffs/` | Handoffs and Routines — the support triage router |
-| `ch05_state_graphs/` | Stateful Agent Graphs — LangGraph persistence and HITL |
-| `ch06_multi_agent/` | Multi-Agent Collaboration — CrewAI and debate protocols |
-| `ch07_model_portability/` | One Agent, Many Models — LiteLLM, Ollama, DSPy |
-| `ch08_mcp_a2a/` | Open Protocols — MCP servers and A2A discovery |
-| `ch09_agent_skills/` | Agent Skills — the production skill library |
-| `ch10_claude_code_antigravity/` | Claude Code and Antigravity |
-| `ch11_memory/` | Memory and Agentic RAG |
-| `ch12_sandboxes/` | Code Execution and Sandbox Agents |
-| `ch13_multimodal/` | Multimodal and Voice Agents |
-| `ch14_guardrails/` | Guardrails and Agent Safety |
-| `ch15_agent_harness/` | Agent Harness Engineering |
-| `ch16_always_on_agents/` | Always-On Agents — daemons, watchdogs, recovery |
-| `ch17_managed_agents/` | Managed Agents — let the platform run it |
-| `ch18_evaluation/` | Evaluation and Observability |
-| `ch19_deployment/` | Deployment, Async Agents, and Security |
-| `ch20_loop_engineering/` | Loop Engineering — the self-correcting fix loop |
-| `ch21_harness_engineer/` | The Harness Engineer — /learn, adversarial pairs, prose verifiers |
-| `ch22_capstone/` | Capstone: Atlas — the Autonomous Engineering Assistant |
-| `ch23_future/` | What's Next — scaffold optimization and reasoning benchmarks |
+| [`ch01_react_from_scratch/`](ch01_react_from_scratch/README.md) | Anatomy of an Agent — the minimal ReAct loop |
+| [`ch02_prompt_architecture/`](ch02_prompt_architecture/README.md) | Prompt Architecture for Agents |
+| [`ch03_tools_and_skills/`](ch03_tools_and_skills/README.md) | Tools, Skills, and Structured Outputs |
+| [`ch04_handoffs/`](ch04_handoffs/README.md) | Handoffs and Routines — the support triage router |
+| [`ch05_state_graphs/`](ch05_state_graphs/README.md) | Stateful Agent Graphs — LangGraph persistence and HITL |
+| [`ch06_multi_agent/`](ch06_multi_agent/README.md) | Multi-Agent Collaboration — CrewAI and debate protocols |
+| [`ch07_model_portability/`](ch07_model_portability/README.md) | One Agent, Many Models — LiteLLM, Ollama, DSPy |
+| [`ch08_mcp_a2a/`](ch08_mcp_a2a/README.md) | Open Protocols — MCP servers and A2A discovery |
+| [`ch09_agent_skills/`](ch09_agent_skills/README.md) | Agent Skills — the production skill library |
+| [`ch10_claude_code_antigravity/`](ch10_claude_code_antigravity/README.md) | Claude Code and Antigravity |
+| [`ch11_memory/`](ch11_memory/README.md) | Memory and Agentic RAG |
+| [`ch12_sandboxes/`](ch12_sandboxes/README.md) | Code Execution and Sandbox Agents |
+| [`ch13_multimodal/`](ch13_multimodal/README.md) | Multimodal and Voice Agents |
+| [`ch14_guardrails/`](ch14_guardrails/README.md) | Guardrails and Agent Safety |
+| [`ch15_agent_harness/`](ch15_agent_harness/README.md) | Agent Harness Engineering |
+| [`ch16_always_on_agents/`](ch16_always_on_agents/README.md) | Always-On Agents — daemons, watchdogs, recovery |
+| [`ch17_managed_agents/`](ch17_managed_agents/README.md) | Managed Agents — let the platform run it |
+| [`ch18_evaluation/`](ch18_evaluation/README.md) | Evaluation and Observability |
+| [`ch19_deployment/`](ch19_deployment/README.md) | Deployment, Async Agents, and Security |
+| [`ch20_loop_engineering/`](ch20_loop_engineering/README.md) | Loop Engineering — the self-correcting fix loop |
+| [`ch21_harness_engineer/`](ch21_harness_engineer/README.md) | The Harness Engineer — /learn, adversarial pairs, prose verifiers |
+| [`ch22_capstone/`](ch22_capstone/README.md) | Capstone: Atlas — the Autonomous Engineering Assistant |
+| [`ch23_future/`](ch23_future/README.md) | What's Next — scaffold optimization and reasoning benchmarks |
 | `shared/` | Global config and declarative skill models used across chapters |
 
 ## 🛠️ Prerequisites
