@@ -51,6 +51,48 @@ E2B_API_KEY=... python online/sandbox_cost_tracker.py
 python online/browser_agent_scraper.py https://example.com   # pip install playwright
 ```
 
+## Run with Gemma 4 on Ollama
+
+> **One-time setup:** follow *Run everything locally with Gemma 4 on Ollama* in the [root README](../README.md): Ollama running, `gemma4-longctx` created, `.env` set to Option B. Run every command below from the **repo root**.
+
+**Status: ✅ Works.** The model runs on Gemma. **Code execution** needs either E2B (a cloud sandbox, which needs `E2B_API_KEY`) or the built-in **local subprocess fallback** (no isolation, dev-only).
+
+### Setup
+
+`.env` keys: `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL=gemma4-longctx`.
+
+Option 1, fully local (fallback runner):
+
+```bash
+pip install anthropic python-dotenv pandas matplotlib seaborn numpy    # the generated code runs on YOUR Python
+```
+
+Option 2, local model with a cloud sandbox:
+
+```bash
+pip install anthropic e2b-code-interpreter python-dotenv
+export E2B_API_KEY=e2b_...
+```
+
+### Commands
+
+```bash
+python ch12_sandboxes/data_analyst.py "Load the sales data, show summary stats, and plot monthly revenue by product."
+```
+
+The script creates `ch12_sandboxes/sample_sales.csv` and prints each iteration: the generated code, its output or error, then the fix.
+
+### What to expect on Gemma 4
+
+- The **error → fix** loop is where a 12B model shows its limits. Expect more iterations than with a frontier model (the cap is 5). Watch which errors it fixes on its own; that's the chapter's main lesson.
+- The model is told the data is at `/tmp/sample_sales.csv`. In fallback mode the script copies the CSV there, so the same generated code works in both modes.
+- `sandbox_cost_tracker.py` and `e2b_multi_language.py` make no LLM calls and need `E2B_API_KEY`.
+
+### Troubleshooting
+
+- **`ModuleNotFoundError: pandas`** in the generated code's output: fallback mode uses your local Python. Install the packages above.
+- **Never run the fallback on untrusted prompts.** Model-written code runs with your user's permissions.
+
 ## Production notes
 
 - Never run model-generated code on the host. The local fallback exists only for development.

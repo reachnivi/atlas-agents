@@ -54,6 +54,39 @@ python online/parallel_fanout.py
 python online/time_travel_debug.py
 ```
 
+## Run with Gemma 4 on Ollama
+
+> **One-time setup:** follow *Run everything locally with Gemma 4 on Ollama* in the [root README](../README.md): Ollama running, `gemma4-longctx` created, `.env` set to Option B. Run every command below from the **repo root**.
+
+**Status: ✅ Works.** `ChatOpenAI` gets `base_url=OPENAI_BASE_URL` from `.env`. The three `online/` demos make no LLM calls.
+
+### Setup
+
+`.env` keys: `OPENAI_BASE_URL`, `OPENAI_API_KEY`, `OPENAI_MODEL=gemma4-longctx`.
+
+```bash
+pip install langgraph langchain-openai python-dotenv
+```
+
+### Commands
+
+```bash
+python ch05_state_graphs/code_review_agent.py      # analyze → self_check → (retry) → human_gate → post
+python ch05_state_graphs/online/approval_gateway.py
+python ch05_state_graphs/online/parallel_fanout.py
+python ch05_state_graphs/online/time_travel_debug.py
+```
+
+### What to expect on Gemma 4
+
+- The review and self-check prompts ask for JSON. Gemma often wraps it in ```` ```json ```` fences. The code parses that with `shared/llm_utils.parse_json`, so you'll see a proper list of comments instead of one raw blob.
+- Gemma tends to score its own review generously (8–9). To see the retry edge fire, raise the threshold in `should_retry()` from 7 to 9.
+
+### Troubleshooting
+
+- **Requests go to api.openai.com**: an older `langchain-openai` ignores `base_url`. Upgrade (`pip install -U langchain-openai`).
+- **`quality_score` is always 5**: the self-check reply had no JSON at all (5 is the fallback). Print `response.content` in `self_check()` to see what the model said.
+
 ## Production notes
 
 - Every retry loop needs a counter in state and a "give up" edge.

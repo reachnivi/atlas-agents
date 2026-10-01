@@ -59,6 +59,29 @@ python online/claude_managed_agent.py --setup
 python online/claude_managed_agent.py --agent-id <id> --list-sessions
 ```
 
+## Run with Gemma 4 on Ollama
+
+> **One-time setup:** follow *Run everything locally with Gemma 4 on Ollama* in the [root README](../README.md): Ollama running, `gemma4-longctx` created, `.env` set to Option B. Run every command below from the **repo root**.
+
+**Status: ❌ Cloud-only.** Managed Agents are hosted services (Anthropic Managed Agents, AWS Bedrock, Vertex AI). The provider runs the model, the sandbox, and the session, so you can't swap in Gemma on Ollama.
+
+### The local equivalent
+
+The point of this chapter is **what the platform does for you**. To get the same capabilities locally with Gemma 4, combine:
+
+| Managed Agents gives you | Local equivalent in this repo |
+|---|---|
+| Restarts and session state | Ch. 16: `watchdog_supervisor.py` + heartbeat |
+| Sandboxed tool execution | Ch. 15: `AgentHarness` (+ Ch. 12 local fallback or E2B) |
+| Streaming events | Ch. 19: `/agent/stream` SSE endpoint |
+| Tool definitions | Ch. 3: `SkillRegistry` |
+
+### What needs to be done locally
+
+- [ ] Run the Ch. 16 daemon on Gemma 4 (see its README).
+- [ ] List what you had to build and operate yourself for that. That list is the build-vs-buy decision this chapter is about.
+- [ ] Note which concerns go away locally (data residency: nothing leaves your machine) and which get harder (scaling, uptime, upgrades).
+
 ## Production notes
 
 - Beta APIs change. Isolate them behind a thin client (as `claude_managed_agent.py` does).

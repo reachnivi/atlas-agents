@@ -67,6 +67,70 @@ python online/learned_router.py            # --live to route real requests
 python online/prompt_critic.py --logs failures.jsonl --prompt system_prompt.txt
 ```
 
+## Run with Gemma 4 on Ollama
+
+> **One-time setup:** follow *Run everything locally with Gemma 4 on Ollama* in the [root README](../README.md): Ollama running, `gemma4-longctx` created, `.env` set to Option B. Run every command below from the **repo root**.
+
+**Status: ✅ Works.** Every loop component runs on Gemma. Expect **more attempts** per fix than with a frontier model, which makes the escalation and fingerprinting logic easier to observe.
+
+### Setup
+
+`.env` keys: `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_STRONG_MODEL=gemma4-longctx` (patches, distillation, critic), and `ANTHROPIC_FAST_MODEL` (lesson compaction, failure clustering, learned router's cheap tier).
+
+```bash
+ollama pull gemma4:e4b                 # .env: ANTHROPIC_FAST_MODEL=gemma4:e4b  (a real cheap/strong split)
+pip install anthropic pytest ruff chromadb python-dotenv
+```
+
+### Commands
+
+**1. Make a small broken repo** (the bug raises inside `orders.py`, so the loop sends that file to the model):
+
+```bash
+mkdir -p /tmp/orders-service && cd /tmp/orders-service
+cat > orders.py <<'EOF'
+def total(items):
+    return sum(i["price"] * i["quantity"] for i in items)
+EOF
+cat > test_orders.py <<'EOF'
+from orders import total
+
+def test_total_uses_qty():
+    assert total([{"price": 2.0, "qty": 3}]) == 6.0
+EOF
+git init -q && git add -A && git commit -qm "broken"
+cd -
+```
+
+**2. Run the loop** (it writes `experience/` and `escalation_state.json` in the current directory):
+
+```bash
+python ch20_loop_engineering/fix_loop.py --repo /tmp/orders-service --goal "pytest green, ruff clean"
+```
+
+**3. The other mechanisms:**
+
+```bash
+python ch20_loop_engineering/online/loop_harness.py           # toy JSON task
+python ch20_loop_engineering/online/learned_router.py         # simulation (no model)
+python ch20_loop_engineering/online/learned_router.py --live  # routes real requests to FAST vs STRONG
+python ch20_loop_engineering/online/experience_distiller.py
+```
+
+To reset the broken repo between runs: `git -C /tmp/orders-service checkout -- .`
+
+### What to expect on Gemma 4
+
+- The patch prompt asks for a **JSON array of full file contents**. Gemma often wraps it in fences, which `parse_json` handles. If it writes prose with no JSON, that attempt fails and becomes a lesson.
+- **Context:** failure output, up to 6 source files of 8k chars each, lessons, and a long reply. Use `num_ctx` ≥ 32768 or the loop loses the source files.
+- Budget figures in `loop_harness.py` assume Claude prices. Locally, `MAX_ATTEMPTS` and the stall fingerprint do the limiting.
+- With `ANTHROPIC_FAST_MODEL=gemma4:e4b`, `learned_router.py --live` shows two local tiers with very different speeds, the same trade-off as Haiku vs Opus.
+
+### Troubleshooting
+
+- **`No module named ruff`**: the verifier runs `python -m ruff`. Install ruff in the same environment.
+- **Immediate escalation** ("same failure 3x"): the model keeps writing the same wrong patch. Read the lessons in `escalation_state.json`; this is the loop working as designed. Try `gemma4:26b` as `ANTHROPIC_STRONG_MODEL` to compare.
+
 ## Production notes
 
 - A loop that can't fail will burn your budget. Every loop needs a way to give up and hand off to a human.

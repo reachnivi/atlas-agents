@@ -56,6 +56,59 @@ python online/adversarial_pair.py "Write a Python function that parses ISO-8601 
 echo "Our seamless platform empowers you..." | python online/prose_verifier.py - --platform google
 ```
 
+## Run with Gemma 4 on Ollama
+
+> **One-time setup:** follow *Run everything locally with Gemma 4 on Ollama* in the [root README](../README.md): Ollama running, `gemma4-longctx` created, `.env` set to Option B. Run every command below from the **repo root**.
+
+**Status: ✅ Works.** `/learn` and the adversarial pair run on Gemma. `skill_reviewer.py` and `prose_verifier.py` make no model calls.
+
+### Setup
+
+`.env` keys: `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_STRONG_MODEL=gemma4-longctx`.
+
+```bash
+pip install anthropic python-dotenv
+```
+
+### Commands
+
+**1. Write a small trajectory log** (normally written by the Ch. 15 harness):
+
+```bash
+mkdir -p logs && cat > logs/session_demo.jsonl <<'EOF'
+{"type": "task", "content": "Summarize Q3 revenue from sales.csv into a markdown table by region"}
+{"type": "tool_call", "tool": "read_file", "input": {"path": "sales.csv"}}
+{"type": "tool_result", "content": "region,revenue\nEMEA,120000\nAPAC,95000\nNA,210000"}
+{"type": "correction", "content": "Always sort regions by revenue descending and include a total row"}
+{"type": "tool_call", "tool": "write_file", "input": {"path": "summary.md"}}
+{"type": "outcome", "status": "success", "attempt": 2}
+EOF
+```
+
+**2. Distill a skill and review it:**
+
+```bash
+python ch21_harness_engineer/learn_command.py --session logs/session_demo.jsonl     # → staging/<name>/SKILL.md
+python ch21_harness_engineer/online/skill_reviewer.py staging/ --allowed-tools read_file,write_file
+```
+
+**3. Adversarial pair and prose verifier:**
+
+```bash
+python ch21_harness_engineer/online/adversarial_pair.py "Write a Python function that parses ISO-8601 durations"
+echo "Our seamless platform empowers you to leverage synergies." | python ch21_harness_engineer/online/prose_verifier.py - --platform google
+```
+
+### What to expect on Gemma 4
+
+- **Check the distilled skill for leaked data.** Smaller models are more likely to copy session values (`EMEA 120000`, "Q3") into the procedure despite the instruction not to. `skill_reviewer.py` should flag them, which is why the review step exists.
+- When builder and adversary are the **same local model**, it tends to agree with itself. Give the adversary a different model to get real disagreement: in `adversarial_pair.py`, change `model=MODEL` inside `attack()` to another local model, e.g. `model="gemma4:e4b"`.
+
+### Troubleshooting
+
+- **`Refusing to distill`**: the log's last `outcome` isn't `success`. Only successful sessions become skills.
+- **The adversary returns no verdict**: its reply had no JSON. Run again, or use a larger model for the adversary.
+
 ## Production notes
 
 - Never let the agent write straight into its trusted skill folder. Keep the staging + review step.

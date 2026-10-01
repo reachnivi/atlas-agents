@@ -66,6 +66,52 @@ python mcp_knowledge_server.py        # speaks MCP over stdio; normally launched
 python online/a2a_client_discovery.py # pip install httpx
 ```
 
+## Run with Gemma 4 on Ollama
+
+> **One-time setup:** follow *Run everything locally with Gemma 4 on Ollama* in the [root README](../README.md): Ollama running, `gemma4-longctx` created, `.env` set to Option B. Run every command below from the **repo root**.
+
+**Status: ✅ Works.** The MCP server makes no LLM calls; it's a tool server. To *use* it with Gemma 4, you need an MCP client that can talk to Ollama. The simplest is **Claude Code pointed at Ollama**.
+
+### Setup
+
+```bash
+pip install mcp httpx
+npm install -g @anthropic-ai/claude-code      # if you don't have Claude Code yet
+```
+
+### Commands
+
+**1. Register the server** with Claude Code (run in any project directory):
+
+```bash
+claude mcp add atlas-knowledge -- python "$(pwd)/ch08_mcp_a2a/mcp_knowledge_server.py"
+```
+
+**2. Start Claude Code against Ollama** instead of Anthropic's API:
+
+```bash
+ANTHROPIC_BASE_URL=http://localhost:11434 ANTHROPIC_AUTH_TOKEN=ollama ANTHROPIC_API_KEY="" \
+  claude --model gemma4-longctx
+```
+
+**3. Try the tools** in the session:
+
+- "Search the knowledge base for LangGraph" → `search_knowledge`
+- "Add an entry titled 'Gemma 4' with content 'Open model from Google with tool calling and vision'" → `add_knowledge`
+- "Run SQL: DELETE FROM knowledge" → should be rejected (`Only SELECT queries are allowed`)
+
+The A2A Agent Card is written to `ch08_mcp_a2a/.well-known/agent.json` when the server starts.
+
+### What to expect on Gemma 4
+
+- Claude Code adds its own large system prompt and tool list. That's why the long-context model matters here: with Ollama's default context the session won't work.
+- Gemma calls the 3 MCP tools reliably for direct requests. Multi-step requests ("search, then add a summary of what you found") work less consistently.
+
+### Troubleshooting
+
+- **`/mcp` in Claude Code shows the server as failed**: run `python ch08_mcp_a2a/mcp_knowledge_server.py` by hand. It should wait silently on stdin. Any traceback is the real error (usually `pip install mcp`).
+- **Claude Code still uses Anthropic's API**: an `ANTHROPIC_API_KEY` from your shell or login takes precedence. Set it to `""` as shown.
+
 ## Production notes
 
 - An MCP server runs with **your** credentials. Validate every argument server-side.

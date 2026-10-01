@@ -66,6 +66,51 @@ python online/atlas_with_a2a_security.py --issue 42 --repo myorg/myrepo       # 
 python online/atlas_nightly_runner.py --repo myorg/myrepo --max-issues 5
 ```
 
+## Run with Gemma 4 on Ollama
+
+> **One-time setup:** follow *Run everything locally with Gemma 4 on Ollama* in the [root README](../README.md): Ollama running, `gemma4-longctx` created, `.env` set to Option B. Run every command below from the **repo root**.
+
+**Status: ✅ Works, with caveats.** Planner, coder, and reviewer run on Gemma. GitHub access goes through the `gh` CLI. Tests run in E2B (cloud), or are **skipped** if E2B isn't installed.
+
+### Setup
+
+`.env` keys: `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL=gemma4-longctx`.
+
+```bash
+pip install anthropic langgraph python-dotenv
+gh auth login                                  # the pipeline reads issues and opens PRs with gh
+```
+
+Sandbox choice:
+
+- **With E2B:** `pip install e2b-code-interpreter` and `export E2B_API_KEY=...`. Tests run in a microVM.
+- **Without E2B:** don't install `e2b-code-interpreter`. The tester then *skips* tests and reports pass, so review the code yourself. (If the package is installed but no key is set, the tester crashes instead of skipping.)
+
+### Commands
+
+Create a small, well-scoped issue in a **test repo**, for example "Add `slugify(text)` to utils.py with pytest tests". Then:
+
+```bash
+python ch22_capstone/atlas_capstone.py --issue 1 --repo you/test-repo --dry-run    # plan, code, review; no PR
+python ch22_capstone/atlas_capstone.py --issue 1 --repo you/test-repo              # opens a real PR after approval
+
+python ch22_capstone/online/atlas_with_a2a_security.py --serve-security-agent --port 8001   # terminal 1
+python ch22_capstone/online/atlas_with_a2a_security.py --issue 1 --repo you/test-repo       # terminal 2
+python ch22_capstone/online/atlas_nightly_runner.py --repo you/test-repo --max-issues 2
+```
+
+### What to expect on Gemma 4
+
+- **Keep issues small.** A 12B model plans and codes a single-function issue well. Multi-file features need more retries and often hit `MAX_RETRIES = 3`.
+- The coder must return a JSON object `{filename: content}`. `parse_json` handles fences and nested braces (the old regex dropped any file whose content contained `{`).
+- Review parse failures still default to **approved**. With a small local reviewer, change that to `needs_revision` before pointing Atlas at anything that matters.
+- Fully local mode: issue text and code go only to your machine (and GitHub).
+
+### Troubleshooting
+
+- **`gh: command not found` / auth errors**: install the GitHub CLI and run `gh auth login`. Without it, `fetch_issue` falls back to an empty issue body.
+- **The plan is a single vague step**: the issue body is too thin. Gemma needs concrete acceptance criteria in the issue.
+
 ## Production notes
 
 - Without E2B the tester **skips and reports pass**. Don't rely on that outside demos.

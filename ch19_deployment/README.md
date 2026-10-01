@@ -69,6 +69,71 @@ curl localhost:8000/agent/status/<task_id>
 
 `AgentRequest` fields: `message` (required), `session_id` (default `"default"`), `webhook_url` (optional, for async completion callbacks).
 
+## Run with Gemma 4 on Ollama
+
+> **One-time setup:** follow *Run everything locally with Gemma 4 on Ollama* in the [root README](../README.md): Ollama running, `gemma4-longctx` created, `.env` set to Option B. Run every command below from the **repo root**.
+
+**Status: ✅ Works.** The API calls Gemma through the Anthropic-compatible endpoint. The main local catch is **networking from Docker**: inside a container, `localhost` is the container itself, not your machine.
+
+### Setup
+
+`.env` keys: `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL=gemma4-longctx`.
+
+```bash
+pip install fastapi uvicorn anthropic celery redis python-dotenv litellm[proxy] prometheus-client
+```
+
+### Commands: directly on your machine
+
+```bash
+cd ch19_deployment
+uvicorn api:app --port 8000 --reload
+curl -X POST localhost:8000/agent/run    -H 'content-type: application/json' -d '{"message":"What is MCP?"}'
+curl -N -X POST localhost:8000/agent/stream -H 'content-type: application/json' -d '{"message":"What is MCP?"}'
+
+# Async mode (needs Redis: docker run -p 6379:6379 redis:7-alpine)
+celery -A api.celery_app worker --loglevel=info
+curl -X POST localhost:8000/agent/async -H 'content-type: application/json' -d '{"message":"Long task"}'
+```
+
+### Commands: Docker Compose with Ollama on the host
+
+The containers must reach Ollama at `host.docker.internal`. Create `ch19_deployment/docker-compose.ollama.yml`:
+
+```yaml
+services:
+  agent-api:
+    environment:
+      - ANTHROPIC_BASE_URL=http://host.docker.internal:11434
+    extra_hosts: ["host.docker.internal:host-gateway"]   # needed on Linux; harmless on Mac/Windows
+  agent-worker:
+    environment:
+      - ANTHROPIC_BASE_URL=http://host.docker.internal:11434
+    extra_hosts: ["host.docker.internal:host-gateway"]
+```
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.ollama.yml up --build
+```
+
+(Compose also expects a `Dockerfile` and `prometheus.yml`; see "What needs to be done" above.) On Linux, Ollama listens on 127.0.0.1 by default. Start it with `OLLAMA_HOST=0.0.0.0 ollama serve` so containers can connect.
+
+**LiteLLM proxy:** the `local` route points at `ollama_chat/<OLLAMA_MODEL>`:
+
+```bash
+python ch19_deployment/online/litellm_proxy_server.py          # then:  --test
+```
+
+### What to expect on Gemma 4
+
+- One Ollama server handles requests **one model-generation at a time** by default. With 4 Celery workers, requests queue inside Ollama. Raise `OLLAMA_NUM_PARALLEL` (memory permitting) or lower worker concurrency.
+- SSE streaming works the same. Tokens arrive at your hardware's speed.
+
+### Troubleshooting
+
+- **`Connection refused` from inside a container**: you used `localhost`. Use `host.docker.internal`, plus `OLLAMA_HOST=0.0.0.0` on Linux.
+- **Async tasks time out**: local generations are slower than cloud. Raise Celery and HTTP timeouts.
+
 ## Production notes
 
 - Put authentication, per-tenant rate limits, and request size limits in front of the API. An open agent endpoint lets anyone spend your money.

@@ -58,6 +58,77 @@ python online/rollback_harness.py
 E2B_API_KEY=... python online/e2b_sandbox.py
 ```
 
+## Run with Gemma 4 on Ollama
+
+> **One-time setup:** follow *Run everything locally with Gemma 4 on Ollama* in the [root README](../README.md): Ollama running, `gemma4-longctx` created, `.env` set to Option B. Run every command below from the **repo root**.
+
+**Status: ✅ Fully local.** The harness itself makes no LLM calls. To see it **under a real model**, the snippet below wires it into a small tool loop running on Gemma 4 through the OpenAI-compatible endpoint.
+
+### Setup
+
+`.env` keys: `OPENAI_BASE_URL`, `OPENAI_API_KEY`, `OPENAI_MODEL=gemma4-longctx`.
+
+```bash
+pip install ruff pytest openai python-dotenv
+```
+
+### Commands
+
+The harness demo (no model):
+
+```bash
+python ch15_agent_harness/harness.py
+python ch15_agent_harness/online/rollback_harness.py
+```
+
+**Gemma 4 driving the harness.** Every write is path-checked, every `.py` file is linted, and every command is allowlisted:
+
+```bash
+python - <<'EOF'
+import json, sys
+from pathlib import Path
+sys.path[:0] = [".", "ch15_agent_harness"]
+from openai import OpenAI
+from shared.config import OPENAI_MODEL          # loads .env → OPENAI_BASE_URL
+from harness import AgentHarness
+
+h = AgentHarness(Path("workspace"), allowed_commands={"python", "ruff", "pytest"})
+
+def tool(name, desc, *params):
+    return {"type": "function", "function": {"name": name, "description": desc, "parameters": {
+        "type": "object", "properties": {p: {"type": "string"} for p in params}, "required": list(params)}}}
+
+tools = [tool("write_file", "Write a file inside the workspace", "path", "content"),
+         tool("read_file", "Read a file inside the workspace", "path"),
+         tool("run_command", "Run a command. Allowed: python, ruff, pytest", "command")]
+msgs = [{"role": "user", "content": "Create math_utils.py with add() and divide() (raise ValueError on zero), "
+         "write test_math_utils.py, then run pytest and report the result."}]
+client = OpenAI()
+for _ in range(10):
+    m = client.chat.completions.create(model=OPENAI_MODEL, messages=msgs, tools=tools).choices[0].message
+    msgs.append(m)
+    if not m.tool_calls:
+        print("\nFINAL:", m.content); break
+    for c in m.tool_calls:
+        out = h.execute_tool(c.function.name, json.loads(c.function.arguments))
+        print(f"🔧 {c.function.name} → {out[:150]}")
+        msgs.append({"role": "tool", "tool_call_id": c.id, "content": out})
+print(h.dump_trajectory())
+EOF
+```
+
+Then ask it to "write to ../outside.txt" or "run `curl example.com`". The harness blocks both, whatever the model decides.
+
+### What to expect on Gemma 4
+
+- When a write returns `⚠️ Linter issues`, Gemma usually fixes them on the next write. That's the harness's verification loop working as designed.
+- Smaller models benefit *more* from a strict harness than frontier models do: the harness catches mistakes the model doesn't notice.
+
+### Troubleshooting
+
+- **`ruff: not found`** inside verification: `pip install ruff` in the same environment.
+- Clean up with `rm -rf workspace/`.
+
 ## Production notes
 
 - `shell=True` plus checking only the first word is still risky (`python -c ...`, `;`, `&&`). Parse with `shlex` and drop shell mode where possible.

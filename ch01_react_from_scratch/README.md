@@ -63,6 +63,45 @@ python online/atlas_v01_plan_and_execute.py "Research the top 3 AI agent framewo
 python online/atlas_v01_streaming.py "What is the Model Context Protocol?"
 ```
 
+## Run with Gemma 4 on Ollama
+
+> **One-time setup:** follow *Run everything locally with Gemma 4 on Ollama* in the [root README](../README.md): Ollama running, `gemma4-longctx` created, `.env` set to Option B. Run every command below from the **repo root**.
+
+**Status: ✅ Works.** The OpenAI-SDK loop talks to Ollama's `/v1` endpoint, and the Anthropic variants talk to its Messages endpoint.
+
+### Setup
+
+| `.env` key | Value | Used by |
+|---|---|---|
+| `OPENAI_BASE_URL` / `OPENAI_API_KEY` / `OPENAI_MODEL` | `http://localhost:11434/v1` / `ollama` / `gemma4-longctx` | `atlas_v01.py`, `atlas_v01_plan_and_execute.py` |
+| `ANTHROPIC_BASE_URL` / `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` | `http://localhost:11434` / `ollama` / `gemma4-longctx` | `atlas_v01_anthropic.py`, `atlas_v01_streaming.py` |
+
+```bash
+pip install openai anthropic python-dotenv
+```
+
+### Commands
+
+```bash
+python ch01_react_from_scratch/atlas_v01.py "What is the Model Context Protocol?"
+python ch01_react_from_scratch/online/atlas_v01_anthropic.py "What is the Model Context Protocol?"
+python ch01_react_from_scratch/online/atlas_v01_plan_and_execute.py "Research the top 3 AI agent frameworks"
+python ch01_react_from_scratch/online/atlas_v01_streaming.py "What is the Model Context Protocol?"
+```
+
+You should see `── Iteration 1 ──`, then `🔧 Calling: search_web({...})`, then a final answer.
+
+### What to expect on Gemma 4
+
+- The tools (`search_web`, `read_url`) still need internet access, since they hit DuckDuckGo and the target pages. Only the *model* is local.
+- Gemma 4 sometimes answers from memory without searching, despite "Always search before answering". If it does, repeat the rule in the user message ("Search the web first, then answer").
+- Three pages at 3,000 chars each plus the conversation is about 4k tokens. This is why the long-context model matters. With Ollama's default context, later iterations lose the system prompt.
+
+### Troubleshooting
+
+- **`Agent reached maximum iterations`**: the model keeps calling tools. Raise `MAX_ITERATIONS` to 8, or make the rule "use at most 3 tool calls" more explicit.
+- **The tool is never called** (answer arrives on iteration 1): run the tool-calling `curl` check from the root README. If no `tool_calls` come back, update Ollama.
+
 ## Production notes
 
 - Tools **return error strings** instead of raising. The model can read an error and recover; a Python exception just kills the loop.

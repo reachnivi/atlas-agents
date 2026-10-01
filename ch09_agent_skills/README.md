@@ -80,6 +80,65 @@ See also `../ch03_tools_and_skills/online/skill_auto_discovery.py`.
 - [ ] Tighten a skill's `allowed-tools` and confirm the agent still completes the task.
 - [ ] Run the `skill-security-audit` procedure against a skill you downloaded from elsewhere.
 
+## Run with Gemma 4 on Ollama
+
+> **One-time setup:** follow *Run everything locally with Gemma 4 on Ollama* in the [root README](../README.md): Ollama running, `gemma4-longctx` created, `.env` set to Option B. Run every command below from the **repo root**.
+
+**Status: ✅ Works.** Skills are Markdown. Any model can follow them once they're in its prompt. Use the Ch. 3 agent (already running on Gemma via `.env`) as the host.
+
+### Setup
+
+`.env` keys: same as Ch. 3 (`OPENAI_BASE_URL`, `OPENAI_API_KEY`, `OPENAI_MODEL=gemma4-longctx`).
+
+```bash
+pip install openai python-dotenv pyyaml
+mkdir -p workspace && cp shared/skills.py workspace/     # something for the code-review skill to review
+```
+
+### Commands
+
+Activate the `code-review` skill on the Ch. 3 agent:
+
+```bash
+python - <<'EOF'
+import sys
+from pathlib import Path
+sys.path.insert(0, "ch03_tools_and_skills")
+import atlas_v03
+
+skill = Path("ch09_agent_skills/skills/code-review/SKILL.md").read_text()
+atlas_v03.SYSTEM_PROMPT += "\n\n# Active skill — follow this procedure exactly\n" + skill
+print(atlas_v03.run_atlas("Use file_read to load skills.py, then review it."))
+EOF
+```
+
+Test **skill selection** (progressive disclosure). Give the model only the catalog and ask which skill fits:
+
+```bash
+python - <<'EOF'
+import sys, yaml
+from pathlib import Path
+sys.path.insert(0, ".")
+from openai import OpenAI
+from shared.config import OPENAI_MODEL
+catalog = []
+for f in sorted(Path("ch09_agent_skills/skills").glob("*/SKILL.md")):
+    meta = yaml.safe_load(f.read_text().split("---")[1])
+    catalog.append(f"- {meta['name']}: {meta['description']}")
+prompt = "Skills:\n" + "\n".join(catalog) + "\n\nWhich ONE skill fits: 'latency doubled after the last deploy'? Reply with the name only."
+print(OpenAI().chat.completions.create(model=OPENAI_MODEL, messages=[{"role": "user", "content": prompt}]).choices[0].message.content)
+EOF
+```
+
+### What to expect on Gemma 4
+
+- A full `SKILL.md` is 1–2k tokens. Load **one** skill at a time; putting all 13 bodies in the prompt is exactly what progressive disclosure is meant to avoid, and on a local model you'll feel the cost.
+- Gemma follows the numbered **Process** well. It's weaker at the **Verification** checklist, so add "Before finishing, go through the Verification checklist item by item" to the prompt.
+
+### Troubleshooting
+
+- **`file_read` can't find `skills.py`**: `FileSkill` reads from `./workspace`, relative to where you run Python. Run from the repo root after the `cp` above.
+
 ## Production notes
 
 - The `description` field decides whether a skill fires. Test it with real phrasing.

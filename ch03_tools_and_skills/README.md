@@ -52,6 +52,42 @@ cd ch03_tools_and_skills
 python atlas_v03.py "Summarize the latest changes in the LangGraph library"
 ```
 
+## Run with Gemma 4 on Ollama
+
+> **One-time setup:** follow *Run everything locally with Gemma 4 on Ollama* in the [root README](../README.md): Ollama running, `gemma4-longctx` created, `.env` set to Option B. Run every command below from the **repo root**.
+
+**Status: ✅ Works.** Same OpenAI-compatible tool-calling loop as Ch. 1, with tools from `SkillRegistry`.
+
+### Setup
+
+`.env` keys: `OPENAI_BASE_URL`, `OPENAI_API_KEY`, `OPENAI_MODEL=gemma4-longctx`.
+
+```bash
+pip install openai python-dotenv pyyaml
+```
+
+### Commands
+
+```bash
+python ch03_tools_and_skills/atlas_v03.py "Summarize the latest changes in the LangGraph library and save them to langgraph_news.md"
+ls workspace/            # FileSkill writes here (relative to where you ran the command)
+
+# Declarative skills (no model call)
+python -c "import sys; sys.path.insert(0,'ch03_tools_and_skills/online'); \
+from skill_auto_discovery import dynamically_load_skills as d; \
+[print(s['name'], '-', s['description']) for s in d('shared/declarative_skills/')]"
+```
+
+### What to expect on Gemma 4
+
+- The registry offers 6 tools (`web_search`, `web_read_page`, `file_read`, `file_write`, `file_list`, `code_execute`). A 12B model chooses among 6 well-described tools reliably. If it confuses them, the fix is better tool `description`s, not a bigger model.
+- `code_execute` runs Python **on your machine** (subprocess with a timeout). That is the same as with a cloud model, but worth remembering.
+- Web tools still need internet access.
+
+### Troubleshooting
+
+- **The file isn't saved**: Gemma sometimes says "I saved the file" without calling `file_write`. Ask explicitly: "use the file_write tool to save…".
+
 ## Production notes
 
 - The tool **description** is a prompt. Vague descriptions cause wrong tool choices.

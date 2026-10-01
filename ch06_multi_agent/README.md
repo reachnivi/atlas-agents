@@ -50,6 +50,41 @@ python online/hierarchical_crew.py
 python online/debate_with_jury.py
 ```
 
+## Run with Gemma 4 on Ollama
+
+> **One-time setup:** follow *Run everything locally with Gemma 4 on Ollama* in the [root README](../README.md): Ollama running, `gemma4-longctx` created, `.env` set to Option B. Run every command below from the **repo root**.
+
+**Status: ✅ Works, slowly.** Every agent gets `llm=LLM(model=LITELLM_MODEL)`. With `LITELLM_MODEL=ollama_chat/gemma4-longctx`, CrewAI goes through LiteLLM to Ollama's native chat API.
+
+### Setup
+
+`.env` keys: `LITELLM_MODEL=ollama_chat/gemma4-longctx`, plus `EMBED_MODEL=embeddinggemma` for `crew_with_memory.py`. Its embedder switches to Ollama automatically when the `.env` points at localhost.
+
+```bash
+ollama pull embeddinggemma
+pip install crewai crewai-tools python-dotenv
+```
+
+### Commands
+
+```bash
+python ch06_multi_agent/newsletter_crew.py "AI agent frameworks in 2026"   # writes ch06_multi_agent/output/newsletter.md
+python ch06_multi_agent/online/debate_with_jury.py
+python ch06_multi_agent/online/hierarchical_crew.py
+python ch06_multi_agent/online/crew_with_memory.py
+```
+
+### What to expect on Gemma 4
+
+- A 4-agent sequential crew makes many LLM calls, each with long backstories and task context. On a 12B model, expect **several minutes** per run. That makes the "every agent adds cost and latency" point concrete.
+- **Hierarchical** crews (`debate_with_jury`, `hierarchical_crew`) need the manager to delegate through tool calls, and that's where small models struggle most. If the manager loops or answers without delegating, cap it with `max_iter=3` on the manager agent, or try `gemma4:26b`.
+- The newsletter Researcher's web tools need internet access.
+
+### Troubleshooting
+
+- **`LLM Provider NOT provided`**: `LITELLM_MODEL` is missing the `ollama_chat/` prefix.
+- **Memory demo asks for an OpenAI key**: `.env` doesn't point at localhost, so the embedder stayed on OpenAI. Check `OPENAI_BASE_URL`.
+
 ## Production notes
 
 - Every added agent adds cost and latency. Use multiple agents only when roles really differ.

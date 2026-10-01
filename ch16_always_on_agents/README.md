@@ -59,6 +59,56 @@ python online/watchdog_supervisor.py --agent always_on_agent.py --max-restarts 5
 python online/heartbeat_monitor.py --mode server   # + --mode checker in another terminal
 ```
 
+## Run with Gemma 4 on Ollama
+
+> **One-time setup:** follow *Run everything locally with Gemma 4 on Ollama* in the [root README](../README.md): Ollama running, `gemma4-longctx` created, `.env` set to Option B. Run every command below from the **repo root**.
+
+**Status: ✅ Fully local.** This is the best chapter to run on Ollama: a daemon that runs all day costs nothing per call locally.
+
+### Setup
+
+`.env` keys: `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL=gemma4-longctx`.
+
+```bash
+pip install anthropic python-dotenv watchdog fastapi uvicorn httpx
+```
+
+Keep the model loaded between tasks, so each task doesn't pay the load time:
+
+```bash
+export OLLAMA_KEEP_ALIVE=24h     # set before starting `ollama serve` (or in the desktop app's environment)
+```
+
+### Commands
+
+```bash
+# Terminal 1: the agent under its watchdog
+cd ch16_always_on_agents
+python online/watchdog_supervisor.py --agent always_on_agent.py --max-restarts 5
+
+# Terminal 2: feed it tasks
+cd ch16_always_on_agents
+echo "Summarize the CAP theorem in 3 bullets" > tasks/q001.txt
+echo "" > tasks/empty.txt                       # → tasks/failed/
+ls tasks/done tasks/failed; cat tasks/done/q001.txt
+```
+
+Event-driven variant and HTTP health:
+
+```bash
+python ch16_always_on_agents/online/event_driven_agent.py
+python ch16_always_on_agents/online/heartbeat_monitor.py --mode server     # + --mode checker in another terminal
+```
+
+### What to expect on Gemma 4
+
+- **Hang detection matters more locally.** A local generation can take a long time on CPU, which can look like a stuck process. The heartbeat is written between tasks, so if the watchdog restarts the agent mid-task, raise `HEARTBEAT_TIMEOUT_S` (60 s) in `watchdog_supervisor.py` above your slowest task.
+- Stop Ollama (`ollama stop gemma4-longctx` or quit it) while tasks are queued: tasks move to `failed/` with a connection error, and the daemon keeps running. That's the poison-message handling at work.
+
+### Troubleshooting
+
+- **The first task is slow, later ones fast**: model load time. `OLLAMA_KEEP_ALIVE` keeps it in memory.
+
 ## Production notes
 
 - Make task processing **idempotent**, because a crash can leave a task half-done and it will be retried.

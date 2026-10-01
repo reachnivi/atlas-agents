@@ -55,6 +55,47 @@ python online/adaptive_chunker.py
 python online/memory_decay.py
 ```
 
+## Run with Gemma 4 on Ollama
+
+> **One-time setup:** follow *Run everything locally with Gemma 4 on Ollama* in the [root README](../README.md): Ollama running, `gemma4-longctx` created, `.env` set to Option B. Run every command below from the **repo root**.
+
+**Status: ✅ Fully local.** The answer and the memory extractor run on Gemma via the Anthropic-compatible endpoint, and **Chroma embeds locally** with its built-in default embedding model, which needs no API key.
+
+### Setup
+
+`.env` keys: `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL=gemma4-longctx` (answers), `ANTHROPIC_FAST_MODEL` (memory extraction).
+
+```bash
+pip install chromadb anthropic python-dotenv
+```
+
+The first run downloads Chroma's small embedding model (about 80 MB) once; after that it works offline.
+
+### Commands
+
+Run them **in order**, because memory persists in `ch11_memory/memory_store/` between runs:
+
+```bash
+python ch11_memory/memory_agent.py "What is MCP?"
+python ch11_memory/memory_agent.py "Remember that I prefer concise answers"
+python ch11_memory/memory_agent.py "How should you format your answers?"     # should mention "concise"
+
+python ch11_memory/online/adaptive_chunker.py     # no LLM
+python ch11_memory/online/memory_decay.py         # no LLM
+```
+
+Reset memory with `rm -rf ch11_memory/memory_store`.
+
+### What to expect on Gemma 4
+
+- The extractor must return `{"memories": [...]}`. Gemma often adds fences or a lead-in sentence, which `parse_json` handles. If the 💾 "stored" line never appears, the reply had no JSON at all; print `response.content[0].text` in `extract_memories()`.
+- Gemma tends to **over-extract** (storing trivia like "User asked about MCP"). Tighten the extractor prompt with an explicit "do NOT store questions the user asked" rule.
+- Memory makes the most sense fully local: none of the personal data leaves your machine.
+
+### Troubleshooting
+
+- **Chroma tries to reach the internet on every run**: only the first run downloads the model. If you're offline from the start, pre-download it on a connected machine (it's cached under `~/.cache/chroma`).
+
 ## Production notes
 
 - Memory is a **privacy surface**. Decide what may be stored and how users can delete it.

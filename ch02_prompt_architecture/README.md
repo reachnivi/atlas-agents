@@ -54,6 +54,38 @@ python prompt_ab_test.py
 python online/multi_persona_router.py "I need help with my API integration"
 ```
 
+## Run with Gemma 4 on Ollama
+
+> **One-time setup:** follow *Run everything locally with Gemma 4 on Ollama* in the [root README](../README.md): Ollama running, `gemma4-longctx` created, `.env` set to Option B. Run every command below from the **repo root**.
+
+**Status: ✅ Works.** All files use the OpenAI SDK, so the base URL in `.env` sends them to Ollama.
+
+### Setup
+
+`.env` keys: `OPENAI_BASE_URL`, `OPENAI_API_KEY`, `OPENAI_MODEL=gemma4-longctx`, and `OPENAI_FAST_MODEL` (the router's classification call in `multi_persona_router.py`).
+
+```bash
+pip install openai python-dotenv
+```
+
+### Commands
+
+```bash
+python ch02_prompt_architecture/prompt_ab_test.py
+python ch02_prompt_architecture/online/multi_persona_router.py "I need help with my API integration"
+```
+
+### What to expect on Gemma 4
+
+- This chapter is useful to run locally. Re-run the A/B test on Gemma 4 and compare it with a cloud model: the winning variant can be different, because smaller models follow rigid formats (*Structured Reporter*) better than vague instructions.
+- Refusal accuracy uses phrase matching ("can't help", "outside my scope"…). Gemma words refusals differently, so add its phrasings to `refusal_phrases` in `run_single_eval()` after reading a few answers.
+- Latency is your hardware, not network. Compare variants with each other, not with cloud numbers.
+
+### Troubleshooting
+
+- **Every case shows ❌ and 0 tools**: the model replied in plain text instead of calling a tool. That is a valid result for this test. Read `answer` to see why.
+- **To try a second local model**, set `OPENAI_MODEL=gemma4:e4b` for one run and compare tables.
+
 ## Production notes
 
 - Keyword matching is a crude quality signal. Chapter 18 replaces it with LLM-as-judge and trajectory metrics.

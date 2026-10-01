@@ -55,6 +55,45 @@ python triage.py "What are your business hours?"
 python online/dynamic_routing.py "I need a refund for my last purchase"
 ```
 
+## Run with Gemma 4 on Ollama
+
+> **One-time setup:** follow *Run everything locally with Gemma 4 on Ollama* in the [root README](../README.md): Ollama running, `gemma4-longctx` created, `.env` set to Option B. Run every command below from the **repo root**.
+
+**Status: ✅ Works.** `triage.py` detects `OPENAI_BASE_URL` and switches the OpenAI Agents SDK to Chat Completions (Ollama has no Responses API). It also turns off tracing, which would otherwise try to upload to OpenAI.
+
+### Setup
+
+`.env` keys: `OPENAI_BASE_URL`, `OPENAI_API_KEY`, `OPENAI_MODEL=gemma4-longctx`, `OPENAI_FAST_MODEL` (history compression), and `EMBED_MODEL=embeddinggemma` (semantic router).
+
+```bash
+ollama pull embeddinggemma
+pip install openai-agents openai numpy python-dotenv
+```
+
+### Commands
+
+```bash
+python ch04_handoffs/triage.py "I was charged twice for my subscription"   # → Billing Specialist
+python ch04_handoffs/triage.py "My API key stopped working"                 # → Technical Support
+python ch04_handoffs/triage.py "What are your business hours?"              # → General Support
+python ch04_handoffs/triage.py "This is stupid"                              # → 🚫 blocked by guardrail (no LLM call)
+
+python ch04_handoffs/online/dynamic_routing.py "I need a refund for my last purchase"   # embeddings via embeddinggemma
+python ch04_handoffs/online/handoff_with_context.py
+```
+
+### What to expect on Gemma 4
+
+- Handoffs are tool calls under the hood (`transfer_to_billing_specialist`, …), so routing quality depends on tool calling. Gemma 4 handles 3 clearly separated specialists well.
+- Sometimes the triage agent answers itself instead of handing off. Strengthen its instructions ("You MUST call a transfer tool. Never answer.") and re-test.
+- The semantic router makes no LLM call at all, so it's the fastest way to route locally.
+
+### Troubleshooting
+
+- **`404 … /v1/responses`**: `OPENAI_BASE_URL` isn't set, so the SDK used the Responses API. Check `.env`.
+- **`model "text-embedding-3-small" not found`**: set `EMBED_MODEL=embeddinggemma`.
+- **Tracing errors / 401 from api.openai.com**: you're running an older copy of `triage.py`. Pull the latest code, which calls `set_tracing_disabled(True)`.
+
 ## Production notes
 
 - Handoffs pass the **whole conversation** by default. Compress it for long sessions.

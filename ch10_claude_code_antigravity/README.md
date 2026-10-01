@@ -53,6 +53,60 @@ python online/autonomy_benchmarker.py --tasks 20
 python online/spec_validator.py --agents-md ./AGENTS.md --agent-url http://localhost:8000
 ```
 
+## Run with Gemma 4 on Ollama
+
+> **One-time setup:** follow *Run everything locally with Gemma 4 on Ollama* in the [root README](../README.md): Ollama running, `gemma4-longctx` created, `.env` set to Option B. Run every command below from the **repo root**.
+
+**Status: ⚠️ Works, with weaker results.** Claude Code can run on Ollama through the Anthropic-compatible endpoint, and `AGENTS.md`, the permissions, and the hooks all work the same. A 12B model is much less capable at long, multi-file coding sessions than a frontier model, though.
+
+### Setup
+
+```bash
+npm install -g @anthropic-ai/claude-code
+pip install anthropic requests python-dotenv
+```
+
+Make a sandbox repo with the contract:
+
+```bash
+mkdir -p ~/atlas-sandbox/workspace/tests && cd ~/atlas-sandbox && git init
+cp -r /path/to/atlas-agents/ch10_claude_code_antigravity/{AGENTS.md,.claude} .
+```
+
+### Commands
+
+**Claude Code on Gemma 4** (the `--model` flag overrides the `"model"` in `.claude/settings.json`):
+
+```bash
+ANTHROPIC_BASE_URL=http://localhost:11434 ANTHROPIC_AUTH_TOKEN=ollama ANTHROPIC_API_KEY="" \
+  claude --model gemma4-longctx
+```
+
+Then check that the enforcement works regardless of the model:
+
+- "Add a `slugify()` function in workspace/utils.py with a test." → after the edit, the **PostToolUse** hook runs `ruff --fix`; `.claude/bash_audit.log` gets every command (**PreToolUse**); tests run when it stops (**Stop**).
+- "Commit and push this." → blocked by the **deny** rules, whatever the model wants.
+
+**The Python tools** (from the atlas-agents repo root, using your `.env`):
+
+```bash
+python ch10_claude_code_antigravity/online/autonomy_benchmarker.py --tasks 5          # uses ANTHROPIC_FAST_MODEL
+python ch10_claude_code_antigravity/online/spec_validator.py --agents-md ch10_claude_code_antigravity/AGENTS.md
+```
+
+Without `--agent-url`, `spec_validator.py` calls the model directly with `AGENTS.md` as the system prompt, so it tests how well **Gemma** respects the contract.
+
+### What to expect on Gemma 4
+
+- This is the clearest local demonstration of the chapter's point: **deny rules and hooks enforce the contract even when the model is weaker.** A prompt rule is only as reliable as the model following it.
+- The spec validator will likely find more contract violations on Gemma than on Claude. Use them to tighten `AGENTS.md` wording.
+- `claude_code_ci.py` passes `--model` from `ANTHROPIC_MODEL`. In CI, the runner would need network access to an Ollama host, so it is mainly a cloud workflow.
+
+### Troubleshooting
+
+- **Claude Code says the model doesn't support tools**: check `ollama show gemma4-longctx` lists `tools`, and that Ollama is 0.14 or newer.
+- **Session forgets earlier steps quickly**: Claude Code's system prompt is large. Use a bigger `num_ctx` (64k if you have the memory).
+
 ## Production notes
 
 - Deny rules beat prompt rules. An instruction in `AGENTS.md` can be ignored or overridden by an injection; a denied command cannot run.

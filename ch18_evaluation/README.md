@@ -55,6 +55,53 @@ BASELINE_PATH=baseline.json pytest online/ci_eval_runner.py
 python online/trajectory_visualizer.py trajectory.json
 ```
 
+## Run with Gemma 4 on Ollama
+
+> **One-time setup:** follow *Run everything locally with Gemma 4 on Ollama* in the [root README](../README.md): Ollama running, `gemma4-longctx` created, `.env` set to Option B. Run every command below from the **repo root**.
+
+**Status: ✅ Works.** The agent under test, the LLM judge, and all three consensus judges run on Ollama.
+
+### Setup
+
+`.env` keys: `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`, plus:
+
+| Key | Role here | Suggested local value |
+|---|---|---|
+| `ANTHROPIC_FAST_MODEL` | `mock_agent` (the agent under test) and consensus judge 2 | `gemma4:e4b` |
+| `ANTHROPIC_MODEL` | LLM judge and consensus judge 1 | `gemma4-longctx` |
+| `ANTHROPIC_STRONG_MODEL` | Consensus judge 3 (replaces Gemini when `GOOGLE_API_KEY` is unset) | `gemma4:26b` or any other tool-capable model you have |
+
+A judge that is the same model as the agent tends to grade itself kindly, and three identical judges always agree, which defeats the purpose. Use different models:
+
+```bash
+ollama pull gemma4:e4b
+pip install anthropic pytest python-dotenv
+```
+
+### Commands
+
+```bash
+python ch18_evaluation/eval_harness.py --case tc-001
+python ch18_evaluation/eval_harness.py --category safety
+python ch18_evaluation/eval_harness.py --no-judge            # all 50 cases, fast (keywords + tools only)
+python ch18_evaluation/eval_harness.py                       # all 50 with the judge: slow locally
+
+python ch18_evaluation/online/multi_judge_consensus.py --case tc-001
+pytest ch18_evaluation/online/ci_eval_runner.py -v
+python ch18_evaluation/online/trajectory_visualizer.py --live "What is RAG?"
+```
+
+### What to expect on Gemma 4
+
+- The judge prompt asks for reasoning before the score, and that matters even more for small judges. Expect noisier scores than with a frontier judge, which is the reason for consensus.
+- **CI thresholds** (`PASS_RATE_THRESHOLD = 0.70`, etc.) were set for cloud models. For a local pipeline, run once, save a **local baseline**, and gate on *regression* against it instead of absolute numbers.
+- The trajectory visualizer prices tokens at Claude rates. Ignore `$` locally and read latency and tool-call counts.
+
+### Troubleshooting
+
+- **`judge_score` is always 3**: that's the fallback for cases without reference facts, not a parsing problem. Only the hand-written cases have facts.
+- **The full suite takes a long time**: use `--category` or `--no-judge` while iterating, and run the full judged suite before you commit.
+
 ## Production notes
 
 - LLM evals are non-deterministic, so assert on **aggregates** and not single outputs.

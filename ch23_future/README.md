@@ -44,6 +44,35 @@ python online/enterprise_ceiling_calculator.py --demo
 python online/enterprise_ceiling_calculator.py --processes processes.json
 ```
 
+## Run with Gemma 4 on Ollama
+
+> **One-time setup:** follow *Run everything locally with Gemma 4 on Ollama* in the [root README](../README.md): Ollama running, `gemma4-longctx` created, `.env` set to Option B. Run every command below from the **repo root**.
+
+**Status: ✅ Works**, with extended thinking turned off (`ENABLE_THINKING=false`), since that parameter is part of Claude's API.
+
+### Setup
+
+`.env` keys: `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` (ReAct runs), `ANTHROPIC_STRONG_MODEL` (the reasoning-first planner), `ANTHROPIC_FAST_MODEL` (the quality judge), and `ENABLE_THINKING=false`.
+
+```bash
+pip install anthropic python-dotenv
+```
+
+### Commands
+
+```bash
+python ch23_future/online/reasoning_vs_react_benchmark.py --tasks 3
+python ch23_future/online/scaffold_optimizer.py --demo
+python ch23_future/online/enterprise_ceiling_calculator.py --demo        # no LLM calls
+```
+
+### What to expect on Gemma 4
+
+- With thinking off, the "reasoning-first" architecture still plans once and then executes deterministically. You're comparing **loop shapes** (many small calls vs. one plan), which is the chapter's main question.
+- To compare *models* as well, set `ANTHROPIC_STRONG_MODEL=gemma4:26b` (planner) and `ANTHROPIC_MODEL=gemma4:e4b` (ReAct) and re-run. Bigger models gain more from planning up front.
+- Gemma 4 itself supports thinking. If a later Ollama release maps the Anthropic `thinking` parameter onto it, try `ENABLE_THINKING=true`. If the request errors, set it back to `false`.
+- Cost columns use Claude prices. Compare latency and LLM-call counts locally.
+
 ## Takeaways
 
 1. Architecture should follow model capability. Re-check your loop design each model generation.

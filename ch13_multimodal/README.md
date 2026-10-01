@@ -52,6 +52,55 @@ uvicorn online.voice_agent_twilio:app --port 8080   # or gemini_live_agent:app
 # Python 3.13+: pip install audioop-lts
 ```
 
+## Run with Gemma 4 on Ollama
+
+> **One-time setup:** follow *Run everything locally with Gemma 4 on Ollama* in the [root README](../README.md): Ollama running, `gemma4-longctx` created, `.env` set to Option B. Run every command below from the **repo root**.
+
+**Status: ⚠️ Partly local.** Images and text work on Gemma 4, which has vision. PDFs take the `pdftotext` fallback path. **The voice agents are cloud-only**: they depend on OpenAI Realtime / Gemini Live speech-to-speech streaming APIs, and Ollama has no equivalent.
+
+### Setup
+
+`.env` keys: `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL=gemma4-longctx`. Leave `GOOGLE_API_KEY` **unset** so PDFs skip Gemini.
+
+```bash
+pip install anthropic python-dotenv pdf2image
+# PDF tools (poppler): macOS: brew install poppler   Linux: sudo apt-get install poppler-utils
+```
+
+Check that the endpoint accepts images (Gemma 4 vision through the Anthropic-compatible API):
+
+```bash
+IMG=$(base64 < some_screenshot.png | tr -d '\n')
+curl -s http://localhost:11434/v1/messages -H 'content-type: application/json' -H 'x-api-key: ollama' -d "{
+  \"model\":\"gemma4-longctx\",\"max_tokens\":100,
+  \"messages\":[{\"role\":\"user\",\"content\":[
+    {\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"$IMG\"}},
+    {\"type\":\"text\",\"text\":\"Describe this image in one sentence.\"}]}]}" | head -c 400; echo
+```
+
+### Commands
+
+```bash
+python ch13_multimodal/multimodal_agent.py image screenshot.png "What errors do you see?"
+python ch13_multimodal/multimodal_agent.py pdf   report.pdf     "Summarize the key findings"   # Gemini fails fast → pdftotext → Gemma
+python ch13_multimodal/multimodal_agent.py text  notes.txt      "What are the action items?"
+
+python ch13_multimodal/online/batch_pdf_analyst.py slides.pdf "Summarize each slide in one sentence"   # each page → image → Gemma vision
+python ch13_multimodal/online/screenshot_debugger.py expected.png actual.png
+```
+
+### What to expect on Gemma 4
+
+- For a **text-heavy PDF**, the fallback (`pdftotext` → Gemma) works well. For a **visual PDF** (slides, scans, charts), use `batch_pdf_analyst.py`: it sends each page as an image, so the layout survives.
+- Gemma reads screenshots, error dialogs, and charts well. Pixel-exact measurements in `screenshot_debugger.py` (padding in px, hex colors) are less precise than with frontier models. Treat its CSS fixes as hints.
+- Each page image costs about 1k+ tokens of context, so keep `MAX_PAGES` small locally.
+- `voice_agent_twilio.py` / `gemini_live_agent.py`: no local path. Read them for the audio-pipeline concepts.
+
+### Troubleshooting
+
+- **The image `curl` returns an error about content type**: update Ollama and confirm `ollama show gemma4-longctx` lists `vision`.
+- **`pdftotext: command not found`**: install poppler (above).
+
 ## Production notes
 
 - Images and PDF pages are expensive in tokens. Cap page counts (`MAX_PAGES`) and resolution.
